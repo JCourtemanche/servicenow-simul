@@ -17,3 +17,11 @@ class Config:
 
     # Flask session — used for /ui flash messages
     FLASK_SECRET = os.environ.get('FLASK_SECRET', '')
+
+    # Persistence backend: 'memory' (default, no persistence) or 'firestore'
+    # (requires google-cloud-firestore + IAM role datastore.user on the runtime
+    # service account). GCP_PROJECT_ID is auto-detected on Cloud Run — override
+    # only if you need to point at a different project.
+    STORAGE_BACKEND = os.environ.get('STORAGE_BACKEND', 'memory').lower()
+    GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', '')
+    FIRESTORE_DATABASE = os.environ.get('FIRESTORE_DATABASE', '(default)')

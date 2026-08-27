@@ -77,10 +77,9 @@ def random_malicious_url():
 # ---------------------------------------------------------------------------
 import secrets
 import threading
-from itertools import count
 
 _NUMBER_LOCK = threading.Lock()
-_NUMBER_COUNTER = count(1)
+_NUMBER_STATE = {'next': 1}  # mutable via reset_counter() so persistence can restore
 
 
 def snow_sys_id():
@@ -89,9 +88,28 @@ def snow_sys_id():
 
 
 def snow_number(prefix='INC'):
-    """Monotonic INCxxxxxxx style ticket number, 7-digit zero-padded."""
+    """
+    Monotonic INCxxxxxxx style ticket number, 7-digit zero-padded.
+    Persists the *next* counter value on every bump so a restart resumes
+    where we left off (when Firestore backend is enabled).
+    """
     with _NUMBER_LOCK:
-        return f"{prefix}{next(_NUMBER_COUNTER):07d}"
+        n = _NUMBER_STATE['next']
+        _NUMBER_STATE['next'] = n + 1
+    from . import persistence
+    persistence.save_counter(_NUMBER_STATE['next'])
+    return f"{prefix}{n:07d}"
+
+
+def reset_counter(next_value=1):
+    """Restore the number counter to a specific value (called at startup)."""
+    with _NUMBER_LOCK:
+        _NUMBER_STATE['next'] = int(next_value)
+
+
+def peek_counter():
+    with _NUMBER_LOCK:
+        return _NUMBER_STATE['next']
 
 
 def snow_datetime(dt=None):

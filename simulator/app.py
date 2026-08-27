@@ -14,7 +14,37 @@ from flask import Flask, jsonify, request
 from config import Config
 from routes.api import api_bp
 from routes.ui import ui_bp
+from generators import incidents, journal, persistence
+from generators.base import reset_counter
 from generators.incidents import seed_tickets
+
+
+def _bootstrap_state(logger):
+    """
+    Initialize the persistence layer, then either rehydrate the in-memory
+    caches from Firestore (if there's saved state) or run seed_tickets().
+    """
+    persistence.init(
+        backend=Config.STORAGE_BACKEND,
+        project_id=Config.GCP_PROJECT_ID,
+        database=Config.FIRESTORE_DATABASE,
+    )
+
+    tickets, journal_rows, next_num = persistence.load_all()
+    if tickets:
+        incidents.load_from_persistence(tickets)
+        journal.load_from_persistence(journal_rows)
+        reset_counter(next_num)
+        logger.info("Restored %d tickets + %d journal rows from persistence (counter@%d)",
+                    len(tickets), len(journal_rows), next_num)
+        return
+
+    if persistence.is_firestore():
+        logger.info("Firestore is empty — seeding %d tickets and writing to Firestore",
+                    Config.SEED_COUNT)
+    else:
+        logger.info("Memory backend — seeding %d tickets (no persistence)", Config.SEED_COUNT)
+    seed_tickets(Config.SEED_COUNT)
 
 
 def create_app():
@@ -46,7 +76,7 @@ def create_app():
             _req_log.info("← %s %s → %s", request.method, request.path, response.status_code)
         return response
 
-    seed_tickets(Config.SEED_COUNT)
+    _bootstrap_state(logger)
 
     @app.route('/health', methods=['GET'])
     def health():

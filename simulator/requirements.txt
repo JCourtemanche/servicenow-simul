@@ -2,4 +2,5 @@ Flask==3.0.0
 gunicorn==21.2.0
 Faker==22.0.0
 xsiam-shared-personas @ git+https://github.com/JCourtemanche/xsiam-shared-personas.git
-# TODO: add integration-specific dependencies here
+# Firestore backend (optional — enabled via STORAGE_BACKEND=firestore)
+google-cloud-firestore==2.16.0

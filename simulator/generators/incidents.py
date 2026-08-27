@@ -17,12 +17,13 @@ import re
 import threading
 from datetime import datetime, timedelta
 
-from . import journal
+from . import journal, persistence
 from .base import (
     snow_sys_id,
     snow_number,
     snow_datetime,
     parse_snow_datetime,
+    reset_counter,
     random_user,
     random_malicious_ip,
     random_malicious_url,
@@ -129,6 +130,7 @@ def create_ticket(fields=None):
 
     with _LOCK:
         _TICKETS[ticket['sys_id']] = ticket
+    persistence.save_ticket(ticket['sys_id'], ticket)
     return ticket
 
 
@@ -189,7 +191,11 @@ def update_ticket(sys_id, delta, user='admin'):
         elif previously_closed and not now_closed:
             _apply_reopen_side_effects(ticket)
 
-        return ticket
+    # Persistence write is outside the lock to avoid blocking readers on
+    # network I/O. The dict passed to Firestore is captured by-reference,
+    # but the SDK snapshots it synchronously.
+    persistence.save_ticket(ticket['sys_id'], ticket)
+    return ticket
 
 
 def close_ticket(sys_id, close_code='Solved (Permanently)', close_notes='', user='admin'):
@@ -206,7 +212,10 @@ def reopen_ticket(sys_id, user='admin'):
 
 def delete_ticket(sys_id):
     with _LOCK:
-        return _TICKETS.pop(sys_id, None)
+        removed = _TICKETS.pop(sys_id, None)
+    if removed:
+        persistence.delete_ticket(sys_id)
+    return removed
 
 
 def get_by_sys_id(sys_id):
@@ -233,9 +242,21 @@ def list_tickets():
 
 
 def reset():
-    """Test helper."""
+    """Clear the in-memory store only (does not touch persistence)."""
     with _LOCK:
         _TICKETS.clear()
+
+
+def load_from_persistence(tickets_by_sysid):
+    """Rehydrate the in-memory cache from a pre-loaded map (startup only)."""
+    with _LOCK:
+        _TICKETS.clear()
+        _TICKETS.update(tickets_by_sysid)
+
+
+def count_tickets():
+    with _LOCK:
+        return len(_TICKETS)
 
 
 # ---------------------------------------------------------------------------

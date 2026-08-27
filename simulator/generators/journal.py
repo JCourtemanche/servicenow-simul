@@ -9,6 +9,7 @@ Writes to `comments` / `work_notes` on a ticket PATCH append rows here.
 """
 import threading
 from datetime import datetime
+from . import persistence
 from .base import snow_sys_id, snow_datetime, parse_snow_datetime
 
 _JOURNAL = []
@@ -18,7 +19,7 @@ _LOCK = threading.Lock()
 def add_entry(element_id, element, value, user='admin'):
     """
     Append a journal row. `element` must be 'comments' or 'work_notes'.
-    Returns the row dict.
+    Returns the row dict. Persists write-through when Firestore is enabled.
     """
     row = {
         'sys_id': snow_sys_id(),
@@ -31,7 +32,15 @@ def add_entry(element_id, element, value, user='admin'):
     }
     with _LOCK:
         _JOURNAL.append(row)
+    persistence.save_journal_entry(row)
     return row
+
+
+def load_from_persistence(rows):
+    """Rehydrate the in-memory cache from a pre-loaded list (startup only)."""
+    with _LOCK:
+        _JOURNAL.clear()
+        _JOURNAL.extend(rows)
 
 
 def query_entries(element_id=None, elements=None, created_after=None, limit=10, offset=0):
