@@ -73,9 +73,13 @@ gcloud run deploy $SERVICE_NAME \
   --memory 512Mi \
   --cpu 1 \
   --timeout 300 \
-  --min-instances 0 \
-  --max-instances 2 \
+  --min-instances 1 \
+  --max-instances 1 \
+  --concurrency 80 \
   --set-env-vars "AUTH_USERNAME=$AUTH_USERNAME,AUTH_PASSWORD=$AUTH_PASSWORD,SNOW_INSTANCE_NAME=$SNOW_INSTANCE_NAME,SEED_COUNT=$SEED_COUNT,DEBUG=False"
+# NB: min=max=1 on purpose. The ticket store is in-process memory — any
+# additional instance would seed its own tickets and diverge state, making
+# the UI + API return different data on consecutive refreshes.
 
 echo -e "${YELLOW}[6/6] Configuration de l'accès public...${NC}"
 gcloud run services add-iam-policy-binding $SERVICE_NAME \

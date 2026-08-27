@@ -167,16 +167,22 @@ def query_table(table):
 @require_basic_auth
 def get_record(table, sys_id):
     if not _is_supported_ticket_table(table):
+        _log.info("get_record: unsupported table=%s, returning 404", table)
         return _err('No Record found', 404)
     t = incidents.get_by_sys_id(sys_id)
-    if not t:
-        # Fallback: the caller may have passed a `number` (INC…) where sys_id
-        # was expected. This happens with `servicenow-update-ticket id="INC…"`
-        # which routes through `Client.update(..., record_id="INC…")`.
-        t = incidents.get_by_number(sys_id)
-        if not t:
-            return _err('No Record found', 404)
-    return _ok(t)
+    if t:
+        _log.info("get_record: matched by sys_id=%s → number=%s", sys_id, t.get('number'))
+        return _ok(t)
+    # Fallback: the caller may have passed a `number` (INC…) where sys_id
+    # was expected. Happens with servicenow-get-ticket / update-ticket
+    # id="INC…" (pack `Client.get/update(record_id="INC…")`).
+    t = incidents.get_by_number(sys_id)
+    if t:
+        _log.warning("get_record: sys_id=%s not found, matched via number fallback → number=%s sys_id=%s",
+                     sys_id, t.get('number'), t.get('sys_id'))
+        return _ok(t)
+    _log.warning("get_record: sys_id=%s not found (neither by sys_id nor by number), returning 404", sys_id)
+    return _err('No Record found', 404)
 
 
 @api_bp.route('/table/<table>', methods=['POST'])
@@ -201,12 +207,16 @@ def update_record(table, sys_id):
 
     # Try sys_id, then number (see get_record fallback rationale)
     if incidents.get_by_sys_id(sys_id):
+        _log.info("update_record: matched by sys_id=%s", sys_id)
         t = incidents.update_ticket(sys_id, dict(body), user=user)
     else:
         by_number = incidents.get_by_number(sys_id)
         if by_number:
+            _log.warning("update_record: sys_id=%s not found, matched via number fallback → number=%s sys_id=%s",
+                         sys_id, by_number.get('number'), by_number.get('sys_id'))
             t = incidents.update_ticket(by_number['sys_id'], dict(body), user=user)
         else:
+            _log.warning("update_record: sys_id=%s not found (neither by sys_id nor by number)", sys_id)
             t = None
 
     if not t:

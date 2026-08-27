@@ -253,16 +253,27 @@ _SEED_TEMPLATES = [
 ]
 
 
-def seed_tickets(count=5):
-    """Insert `count` fake tickets. Idempotent — clears the store first."""
+def seed_tickets(count=5, seed=42):
+    """
+    Insert `count` fake tickets. Idempotent — clears the store first.
+
+    Uses a fixed RNG seed so every restart produces identical seed data.
+    Without this, two Cloud Run workers would each generate different
+    tickets (same numbers, different descriptions/users) and the UI would
+    show inconsistent state across page refreshes.
+    """
     reset()
     journal.reset()
 
+    rng = random.Random(seed)
+    from xsiam_shared import USERS  # local import to avoid cycles
+    users = list(USERS) if USERS else [{'email': 'anon@business.org', 'hostname': 'BSNS-UNKNOWN', 'internal_ip': '192.168.1.1'}]
+
     now = datetime.utcnow()
     for i in range(count):
-        template_short, template_desc = random.choice(_SEED_TEMPLATES)
-        user = random_user()
-        mal_file = random.choice(MALICIOUS_FILES) if MALICIOUS_FILES else {'name': 'evil.exe'}
+        template_short, template_desc = _SEED_TEMPLATES[i % len(_SEED_TEMPLATES)]
+        user = users[i % len(users)]
+        mal_file = MALICIOUS_FILES[i % len(MALICIOUS_FILES)] if MALICIOUS_FILES else {'name': 'evil.exe'}
         ctx = {
             'user': user.get('email', 'unknown'),
             'host': user.get('hostname', 'BSNS-HOST'),
@@ -271,8 +282,8 @@ def seed_tickets(count=5):
             'url': random_malicious_url(),
             'domain': 'business.org',
         }
-        created = now - timedelta(hours=random.randint(1, 72))
-        priority = str(random.choice([1, 2, 3, 3, 4]))
+        created = now - timedelta(hours=rng.randint(1, 72))
+        priority = str(rng.choice([1, 2, 3, 3, 4]))
 
         state = STATE_NEW if i < max(1, count - 1) else STATE_IN_PROGRESS
 
@@ -285,8 +296,8 @@ def seed_tickets(count=5):
             'severity': priority,
             'impact': priority,
             'caller_id': ctx['user'],
-            'assigned_to': random_user().get('email', ''),
-            'category': random.choice(['security', 'inquiry', 'network', 'software']),
+            'assigned_to': users[(i + 1) % len(users)].get('email', ''),
+            'category': ['security', 'inquiry', 'network', 'software'][i % 4],
             'sys_created_on': snow_datetime(created),
             'sys_updated_on': snow_datetime(created),
             'opened_at': snow_datetime(created),
