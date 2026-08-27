@@ -22,7 +22,7 @@ def create_app():
     app.config['SECRET_KEY'] = Config.FLASK_SECRET or secrets.token_hex(16)
 
     logging.basicConfig(
-        level=logging.INFO if Config.DEBUG else logging.WARNING,
+        level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     )
     logger = logging.getLogger(__name__)
@@ -31,6 +31,20 @@ def create_app():
 
     app.register_blueprint(api_bp)
     app.register_blueprint(ui_bp)
+
+    _req_log = logging.getLogger('request')
+
+    @app.before_request
+    def _log_request():
+        # Skip the noisy UI static/paths but keep everything API-side
+        if request.path.startswith('/api/') or request.path.startswith('/oauth_token'):
+            _req_log.info("→ %s %s?%s", request.method, request.path, request.query_string.decode('latin-1'))
+
+    @app.after_request
+    def _log_response(response):
+        if request.path.startswith('/api/') or request.path.startswith('/oauth_token'):
+            _req_log.info("← %s %s → %s", request.method, request.path, response.status_code)
+        return response
 
     seed_tickets(Config.SEED_COUNT)
 
