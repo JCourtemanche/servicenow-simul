@@ -112,3 +112,40 @@ Query parser (`sysparm_query`) : couvre les 4 patterns réellement envoyés par 
 - OAuth/JWT complet (stub uniquement).
 - `sysparm_display_value=all` (le pack marche sans côté simulateur).
 - Persistance disque : restart Cloud Run = reset (suffit pour une démo).
+
+# Prérequis de déploiement (Configuration IAM)
+
+Pour que le script de déploiement `deploy-cloudrun.sh` fonctionne, des permissions spécifiques doivent être accordées à votre compte utilisateur (pour lancer le build) et au compte de service Compute Engine par défaut (utilisé par Cloud Build en arrière-plan).
+
+Vous pouvez configurer tous les droits nécessaires en exécutant ce bloc de commandes dans votre Cloud Shell. Il détectera automatiquement votre compte et votre projet actuel :
+
+```bash
+# 1. Récupération des variables de l'environnement courant
+PROJECT_ID=$(gcloud config get-value project)
+USER_EMAIL=$(gcloud config get-value core/account)
+PROJECT_NUMBER=$(gcloud projects describe$PROJECT_ID --format="value(projectNumber)")
+SERVICE_ACCOUNT="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+
+echo "Configuration des droits pour le projet : $PROJECT_ID"
+echo "Utilisateur : $USER_EMAIL"
+echo "Compte de service : $SERVICE_ACCOUNT"
+
+# 2. Droits pour l'utilisateur (Lancer le build et uploader le code)
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$USER_EMAIL" \
+  --role="roles/cloudbuild.builds.editor"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$USER_EMAIL" \
+  --role="roles/storage.admin"
+
+# 3. Droits pour le compte de service Cloud Build (Lire le stockage et pousser l'image)
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:$SERVICE_ACCOUNT" \
+  --role="roles/storage.admin"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:$SERVICE_ACCOUNT" \
+  --role="roles/artifactregistry.writer"
+
+echo "Configuration IAM terminée. Vous pouvez maintenant lancer ./deploy-cloudrun.sh"
