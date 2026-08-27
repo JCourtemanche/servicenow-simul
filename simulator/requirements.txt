@@ -1,0 +1,5 @@
+Flask==3.0.0
+gunicorn==21.2.0
+Faker==22.0.0
+xsiam-shared-personas @ git+https://github.com/JCourtemanche/xsiam-shared-personas.git
+# TODO: add integration-specific dependencies here

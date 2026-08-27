@@ -1,0 +1,10 @@
+runtime: python311
+entrypoint: gunicorn -b :$PORT -w 4 --timeout 120 app:app
+
+env_variables:
+  AUTH_USERNAME: "admin"
+  AUTH_PASSWORD: "admin"
+  SNOW_INSTANCE_NAME: "demo-instance"
+  SNOW_TICKET_TYPE: "incident"
+  SEED_COUNT: "5"
+  DEBUG: "False"

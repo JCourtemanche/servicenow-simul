@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ServiceNow Simulator — {{ instance }}</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: #0f0f11;
+      color: #e6e6e6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.4;
+    }
+    header {
+      background: #16171a;
+      border-bottom: 1px solid #26282d;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { margin: 0; font-size: 16px; font-weight: 600; }
+    header .meta { font-size: 12px; color: #8b8f97; }
+    header .meta code { background: #1e1f24; padding: 2px 6px; border-radius: 3px; color: #00d1a7; }
+    header a.logout { color: #8b8f97; font-size: 12px; text-decoration: none; }
+    header a.logout:hover { color: #e6e6e6; }
+
+    main { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    section { background: #16171a; border: 1px solid #26282d; border-radius: 6px; margin-bottom: 24px; }
+    section h2 { margin: 0; padding: 14px 20px; font-size: 14px; font-weight: 600; border-bottom: 1px solid #26282d; }
+    section .body { padding: 18px 20px; }
+
+    .flash { padding: 10px 16px; margin: 0 24px; border-radius: 4px; font-size: 13px; margin-top: 16px; }
+    .flash.success { background: #0d3c30; border: 1px solid #1b7a5c; color: #7fe8c6; }
+    .flash.error   { background: #3c1414; border: 1px solid #7a1b1b; color: #f4a0a0; }
+
+    form.stacked label { display: block; margin: 10px 0 6px; font-size: 12px; color: #b0b3ba; text-transform: uppercase; letter-spacing: 0.4px; }
+    form.stacked input[type=text], form.stacked textarea {
+      width: 100%; background: #0f0f11; color: #e6e6e6;
+      border: 1px solid #2d3037; border-radius: 4px; padding: 8px 10px; font-size: 14px;
+    }
+    form.stacked textarea { min-height: 80px; font-family: inherit; resize: vertical; }
+    form.stacked .radios { display: flex; gap: 20px; margin: 8px 0; }
+    form.stacked .radios label { text-transform: none; letter-spacing: normal; color: #e6e6e6; display: inline; margin: 0 4px 0 6px; font-size: 14px; }
+    form.stacked button, .btn {
+      background: #00a889; color: white; border: 0; padding: 10px 20px; font-size: 14px;
+      border-radius: 4px; cursor: pointer; margin-top: 14px;
+    }
+    form.stacked button:hover, .btn:hover { background: #00c19f; }
+    .btn.secondary { background: #2d3037; color: #e6e6e6; }
+    .btn.secondary:hover { background: #3a3e46; }
+    .btn.danger { background: #a33636; }
+    .btn.danger:hover { background: #c14545; }
+    .btn.small { padding: 5px 10px; font-size: 12px; margin-top: 0; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 12px; text-align: left; font-size: 13px; border-bottom: 1px solid #26282d; vertical-align: top; }
+    th { background: #1a1c20; font-weight: 600; color: #b0b3ba; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+    tr:last-child td { border-bottom: 0; }
+
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .badge.new { background: #1a3457; color: #7cb9ff; }
+    .badge.progress { background: #533a13; color: #f4c47f; }
+    .badge.closed { background: #133c25; color: #7fe8b0; }
+    .badge.canceled { background: #3d3d3d; color: #a0a0a0; }
+
+    .mono { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12px; color: #b0b3ba; }
+    .muted { color: #7a7d84; font-size: 12px; }
+    .row-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .row-actions form { display: inline; margin: 0; }
+
+    .expand-details { background: #0e0f11; border-top: 1px dashed #26282d; padding: 12px 20px; font-size: 12px; }
+    .expand-details .journal-item { padding: 6px 10px; background: #16171a; border-left: 3px solid #00a889; margin: 6px 0; border-radius: 0 4px 4px 0; }
+    .expand-details .journal-item.work_notes { border-left-color: #f4c47f; }
+    .expand-details .journal-item .meta { font-size: 11px; color: #7a7d84; margin-bottom: 3px; }
+    details summary { cursor: pointer; padding: 8px 20px; font-size: 12px; color: #8b8f97; background: #1a1c20; border-top: 1px solid #26282d; }
+    details summary:hover { color: #e6e6e6; }
+
+    .add-note-form { display: flex; gap: 6px; margin-top: 10px; }
+    .add-note-form input[type=text] {
+      flex: 1; background: #16171a; color: #e6e6e6;
+      border: 1px solid #2d3037; border-radius: 3px; padding: 5px 8px; font-size: 12px;
+    }
+    .add-note-form select { background: #16171a; color: #e6e6e6; border: 1px solid #2d3037; border-radius: 3px; padding: 4px; font-size: 12px; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>ServiceNow Simulator</h1>
+    <div class="meta">
+      instance <code>{{ instance }}</code>
+      · table <code>{{ ticket_type }}</code>
+      · connecté en tant que <code>{{ current_user }}</code>
+    </div>
+  </div>
+  <a href="{{ url_for('ui.logout') }}" class="logout">Se déconnecter</a>
+</header>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+    <div class="flash {{ category }}">{{ message }}</div>
+  {% endfor %}
+{% endwith %}
+
+<main>
+
+  <section>
+    <h2>Nouveau ticket</h2>
+    <div class="body">
+      <form class="stacked" method="POST" action="{{ url_for('ui.create_ticket') }}">
+        <div class="grid-2">
+          <div>
+            <label for="short_description">Sujet (short_description) *</label>
+            <input type="text" id="short_description" name="short_description" required
+                   placeholder="Suspicious outbound traffic detected">
+
+            <label for="correlation_id">Ref case XSIAM (correlation_id)</label>
+            <input type="text" id="correlation_id" name="correlation_id"
+                   placeholder="XSIAM Incident #12345">
+
+            <label>Statut initial</label>
+            <div class="radios">
+              <span><input type="radio" id="state_open" name="state" value="1" checked>
+                <label for="state_open">Ouvert (New)</label></span>
+              <span><input type="radio" id="state_closed" name="state" value="7">
+                <label for="state_closed">Fermé (Closed)</label></span>
+            </div>
+          </div>
+          <div>
+            <label for="description">Corps (description)</label>
+            <textarea id="description" name="description"
+                      placeholder="EDR flagged outbound connections to a known-malicious host..."></textarea>
+          </div>
+        </div>
+        <button type="submit">Créer le ticket</button>
+      </form>
+    </div>
+  </section>
+
+  <section>
+    <h2>Tickets ({{ rows|length }})</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Number</th>
+          <th>Sujet</th>
+          <th>Statut</th>
+          <th>Correlation ID</th>
+          <th>Opened</th>
+          <th>Updated</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% if not rows %}
+        <tr><td colspan="7" class="muted" style="text-align:center; padding: 30px;">Aucun ticket. Créez-en un ci-dessus.</td></tr>
+      {% endif %}
+      {% for row in rows %}
+        {% set t = row.ticket %}
+        {% set is_closed = t.state in closed_states %}
+        {% set badge_class = 'closed' if is_closed else ('progress' if t.state == '2' else 'new') %}
+        <tr>
+          <td class="mono">{{ t.number }}</td>
+          <td>{{ t.short_description }}</td>
+          <td><span class="badge {{ badge_class }}">{{ state_labels.get(t.state, t.state) }}</span></td>
+          <td class="mono">{{ t.correlation_id or '—' }}</td>
+          <td class="mono">{{ t.opened_at }}</td>
+          <td class="mono">{{ t.sys_updated_on }}</td>
+          <td>
+            <div class="row-actions">
+              {% if is_closed %}
+                <form method="POST" action="{{ url_for('ui.reopen', sys_id=t.sys_id) }}">
+                  <button type="submit" class="btn secondary small">Rouvrir</button>
+                </form>
+              {% else %}
+                <form method="POST" action="{{ url_for('ui.close', sys_id=t.sys_id) }}">
+                  <button type="submit" class="btn danger small">Fermer</button>
+                </form>
+              {% endif %}
+            </div>
+            <form class="add-note-form" method="POST" action="{{ url_for('ui.comment', sys_id=t.sys_id) }}">
+              <select name="kind">
+                <option value="work_notes">work_note</option>
+                <option value="comments">comment</option>
+              </select>
+              <input type="text" name="text" placeholder="Ajouter une note…">
+              <button type="submit" class="btn secondary small">+</button>
+            </form>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="7" style="padding:0; border-bottom: 1px solid #26282d;">
+            <details>
+              <summary>Détails ticket &amp; journal ({{ row.journal|length }} entrée{{ 's' if row.journal|length > 1 else '' }})</summary>
+              <div class="expand-details">
+                <div class="mono" style="margin-bottom:8px;">sys_id: {{ t.sys_id }}</div>
+                {% if t.description %}<div style="margin-bottom:10px;"><strong>Description:</strong> {{ t.description }}</div>{% endif %}
+                {% if is_closed %}
+                  <div class="muted">
+                    Closed at {{ t.closed_at }} · code: {{ t.close_code }} · notes: {{ t.close_notes }}
+                  </div>
+                {% endif %}
+                {% if row.journal %}
+                  <div style="margin-top:8px; font-weight:600;">Journal (sys_journal_field)</div>
+                  {% for entry in row.journal %}
+                    <div class="journal-item {{ entry.element }}">
+                      <div class="meta">{{ entry.element }} · {{ entry.sys_created_by }} · {{ entry.sys_created_on }}</div>
+                      <div>{{ entry.value }}</div>
+                    </div>
+                  {% endfor %}
+                {% else %}
+                  <div class="muted" style="margin-top:8px;">Aucune entrée de journal.</div>
+                {% endif %}
+              </div>
+            </details>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>API endpoints</h2>
+    <div class="body">
+      <div class="muted" style="margin-bottom:10px;">Utilisez ces endpoints depuis Cortex XSIAM (ServiceNow pack v2, auth Basic) :</div>
+      <ul class="mono" style="line-height: 1.8;">
+        <li>GET&nbsp;&nbsp;&nbsp;/api/now/table/{{ ticket_type }}</li>
+        <li>GET&nbsp;&nbsp;&nbsp;/api/now/table/{{ ticket_type }}/&lt;sys_id&gt;</li>
+        <li>POST&nbsp;&nbsp;/api/now/table/{{ ticket_type }}</li>
+        <li>PATCH /api/now/table/{{ ticket_type }}/&lt;sys_id&gt;</li>
+        <li>GET&nbsp;&nbsp;&nbsp;/api/now/table/sys_journal_field?sysparm_query=element_id=&lt;sys_id&gt;</li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+</body>
+</html>

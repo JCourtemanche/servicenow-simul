@@ -1,0 +1,15 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/servicenow-simulator/servicenow-simulator:latest'
+      - '-f'
+      - 'deployment/Dockerfile'
+      - '.'
+
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/servicenow-simulator/servicenow-simulator:latest'
+
+substitutions:
+  _REGION: europe-west1
